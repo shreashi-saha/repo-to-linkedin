@@ -10,7 +10,7 @@ Repo-to-LinkedIn is a lightweight, high-performance web application designed for
 
 - 🔗 **Public GitHub Repository URL Parsing**: Validates and extracts owner & repository from standard GitHub URLs.
 - 📄 **Automatic README Retrieval**: Fetches and decodes `README.md` using GitHub's public API or raw content endpoints without requiring GitHub authentication.
-- 🤖 **Gemini AI Content Engine**: Server-side integration with Google Gemini AI (`gemini-2.5-flash` / `gemini-2.0-flash` / `gemini-1.5-flash`) engineered to adhere strictly to supported facts in your README.
+- 🤖 **Gemini AI Content Engine**: Server-side integration with Google Gemini AI (`gemini-3.6-flash` / `gemini-3.5-flash`) engineered to adhere strictly to supported facts in your README.
 - ✏️ **Editable Post Editor**: Full live editing capability for the generated post text before sharing.
 - 🏷️ **Relevant Hashtags**: Automatically generates 5–10 topic & tech-stack specific hashtags.
 - 📋 **One-Click Clipboard Copy**: Copies the post and hashtags formatted for LinkedIn pasting.

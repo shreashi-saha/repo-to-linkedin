@@ -55,76 +55,85 @@ ${readmeContent.slice(0, 12000)}
 ---
 `;
 
-  // Candidate models prioritising currently supported models
+  // Models to try: Primary gemini-3.6-flash, Fallback gemini-3.5-flash
   const modelsToTry = [
-    'gemini-3.8-flash',
-    'gemini-3.5-flash',
-    'gemini-3.0-flash',
-    'gemini-2.5-flash',
-    'gemini-1.5-flash',
+    'gemini-3.6-flash',
   ];
 
   let lastErrorMsg = '';
 
   for (const modelName of modelsToTry) {
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: promptText }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.4,
-            topK: 40,
-            topP: 0.95,
-            responseMimeType: 'application/json',
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({}));
-        const msg = errorJson.error?.message || response.statusText;
-        lastErrorMsg = `Gemini API (${modelName}) returned ${response.status}: ${msg}`;
-
-        // If API key invalid
-        if (response.status === 400 && msg.includes('API key')) {
-          return {
-            error: {
-              success: false,
-              code: 'MISSING_API_KEY',
-              error: 'Invalid Gemini API key. Please verify your GEMINI_API_KEY environment variable.',
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: promptText }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.4,
+              topK: 40,
+              topP: 0.95,
+              responseMimeType: 'application/json',
             },
-          };
+          }),
+        });
+
+        if (!response.ok) {
+          const errorJson = await response.json().catch(() => ({}));
+          const msg = errorJson.error?.message || response.statusText;
+          lastErrorMsg = `Gemini API (${modelName}) returned ${response.status}: ${msg}`;
+
+          // If API key invalid
+          if (response.status === 400 && msg.includes('API key')) {
+            return {
+              error: {
+                success: false,
+                code: 'MISSING_API_KEY',
+                error: 'Invalid Gemini API key. Please verify your GEMINI_API_KEY environment variable.',
+              },
+            };
+          }
+
+          // If 503 (high demand) or 429 (rate limit), pause briefly before retry
+          if ((response.status === 503 || response.status === 429) && attempt < 2) {
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            continue;
+          }
+
+          // Move to next candidate model
+          break;
         }
-        // Try next candidate model
-        continue;
-      }
 
-      const resData = await response.json();
-      const rawResponseText =
-        resData.candidates?.[0]?.content?.parts?.[0]?.text;
+        const resData = await response.json();
+        const rawResponseText =
+          resData.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!rawResponseText) {
-        lastErrorMsg = 'Empty response received from Gemini model.';
-        continue;
-      }
+        if (!rawResponseText) {
+          lastErrorMsg = 'Empty response received from Gemini model.';
+          break;
+        }
 
-      const parsed = parseGeminiJsonResponse(rawResponseText, repoUrl);
-      if (parsed) {
-        return { data: parsed };
+        const parsed = parseGeminiJsonResponse(rawResponseText, repoUrl);
+        if (parsed) {
+          return { data: parsed };
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        lastErrorMsg = message;
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          continue;
+        }
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      lastErrorMsg = message;
     }
   }
 
